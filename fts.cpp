@@ -1,49 +1,50 @@
 #include "fts.h"
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <pthread.h>
 
 //debug
 #define _DEBUG
 #ifdef _DEBUG
 #include <stdio.h>
-#define prt(s) printf(s)
+#define prt(s,p) printf(s,p)
 #else
-#define prt(s)
+#define prt(s,p)
 #endif
 
 
 int fts::init(int port)
 {
-    int server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    this->m_sSocket = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in server_sockaddr;
     server_sockaddr.sin_family = AF_INET;
     server_sockaddr.sin_port = htons(port);
     server_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     ///bind，成功返回0，出错返回-1
-    if (bind(server_sockfd, (struct sockaddr *)&server_sockaddr, sizeof(server_sockaddr)) == -1)
+    if (bind(this->m_sSocket, (struct sockaddr *)&server_sockaddr, sizeof(server_sockaddr)) == -1)
     {
         return -1;
     }
-
     ///listen，成功返回0，出错返回-1
-    if (listen(server_sockfd, 5) == -1)
+    if (listen(this->m_sSocket, 5) == -1)
     {
         return -1;
     }
-    pthread_t id;
-    int ret=pthread_create(&id,NULL,fts::acceptThread,(void*)server_sockfd);
+    int ret=pthread_create(&this->m_phAccept,NULL,fts::acceptThread,(void*)&this->m_sSocket);
     if(ret!=0)return ret;
-    pthread_join(id,NULL);
+    pthread_join(this->m_phAccept,NULL);
     return 0;
 }
 
 void* fts::acceptThread(void* p){
-    int* sServer=(int*)p;
-    prt("--debug--\n");
-    int sClient;
-    while((sClient = accept(*sServer,(struct sockaddr*)NULL,NULL))==-1){
-        
+    int sServer=*(int*)p;
+    int sClient=0;
+    while((sClient = accept(sServer,(struct sockaddr*)NULL,NULL))>0){
+        prt("client connect:%d\n",sClient);
+        pthread_t id;
+
     }
+    return 0;
+}
+
+void* fts::dealThread(void* p){
+
     return 0;
 }
