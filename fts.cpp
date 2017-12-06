@@ -39,12 +39,19 @@ void* fts::acceptThread(void* p){
     while((sClient = accept(sServer,(struct sockaddr*)NULL,NULL))>0){
         prt("client connect:%d\n",sClient);
         pthread_t id;
-
+        pthread_create(&id,NULL,fts::dealThread,(void*)&sClient);
     }
     return 0;
 }
 
 void* fts::dealThread(void* p){
-
+    int sClient=*(int*)p;
+    prt("start deal:%d\n",sClient);
+    while(true){
+        char recvBuff[1024];
+        if(recv(sClient,recvBuff,1024,0)<=0)break;
+        prt("data:%s\n",recvBuff);
+    }
+    prt("close connect:%d\n",sClient);
     return 0;
 }
