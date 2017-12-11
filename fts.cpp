@@ -46,7 +46,26 @@ void* fts::acceptThread(void* p){
 
 void* fts::dealThread(void* p){
     int sClient=*(int*)p;
-    prt("start deal:%d\n",sClient);
+    char headRecvBuff[1024];
+    if(recv(sClient,headRecvBuff,1024,0)<=0){
+       return 0;
+    }
+    char code=headRecvBuff[0];
+    int64_t fileSize=*(int64_t*)&headRecvBuff[1];
+    int64_t max=4294967296;//max 4GB
+    if(fileSize<=0 || fileSize>=max){
+        char tmp[]=" file size is too large(0~4GB)";
+        tmp[0]=1;
+        send(sClient,tmp,sizeof(tmp),0);
+        prt("file size error:%ld\n",fileSize);
+        return 0;
+    }
+    std::string filename=&headRecvBuff[9];
+    std::string token=&headRecvBuff[9+filename.length()+1];
+    prt("code:%d,",code);
+    prt("filename:%s,",filename.c_str());
+    prt("token:%s,",token.c_str());
+    prt("file size:%ld\n",fileSize);
     while(true){
         char recvBuff[1024];
         if(recv(sClient,recvBuff,1024,0)<=0)break;
