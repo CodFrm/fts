@@ -13,7 +13,6 @@ int main(){
     // }else{
     //     printf("error %s\n",tmp->error());
     // }
-
     fts* server=new fts();
     printf("------file transfer server start-----\n");
     server->init(5209);
