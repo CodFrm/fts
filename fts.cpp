@@ -92,6 +92,7 @@ void* fts::dealThread(void* p){
     std::string sql="select SQL_NO_CACHE `soft_uid`,`soft_filename`,`soft_type` from jx_soft_list where sid=";
     char tmp[32];
     sprintf(tmp,"%ld",soft_id);
+    sql+=soft_id;
     if(tmpRec=db.query(sql.c_str())){
         free(param);
         void** res=tmpRec->fetch();
