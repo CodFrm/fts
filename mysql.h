@@ -1,5 +1,6 @@
 #include <mysql/mysql.h>
 #include <string.h>
+#include <malloc.h>
 
 #define db_host "10.127.133.247"
 #define db_user "root"
@@ -15,8 +16,8 @@ public:
     mysql();
     ~mysql();
 
-    record* query(char* sql);
-    record* query(char* sql,MYSQL_BIND*);
+    record* query(const char* sql);
+    record* query(const char* sql,MYSQL_BIND*);
 
     const char* error();
 };
@@ -26,6 +27,7 @@ private:
     MYSQL_STMT* m_pSTMT=NULL;
     MYSQL_BIND* m_Bind=NULL;
     void** m_Result=NULL;
+    int count=0;
 public:
     record(MYSQL_STMT*);
     ~record();

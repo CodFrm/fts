@@ -81,17 +81,32 @@ void* fts::dealThread(void* p){
     record* tmpRec;
     MYSQL_BIND* param;
     param=(MYSQL_BIND*)malloc(sizeof(MYSQL_BIND)*1);
+    unsigned long len=8;
     memset(param,0,sizeof(param));
     param[0].buffer_type=MYSQL_TYPE_LONGLONG;
     param[0].buffer=(char*)&soft_id;
-    param[0].length=0;
+    param[0].length=&len;
     FILE* pFile;
     std::string tmpPath=dir;
-    if(tmpRec=db.query("select `soft_uid`,`soft_filename`,`soft_type` from jx_soft_list where sid=?;",param)){
+    printf("soft_id:%d    ------\n",soft_id);
+    std::string sql="select SQL_NO_CACHE `soft_uid`,`soft_filename`,`soft_type` from jx_soft_list where sid=";
+    char tmp[32];
+    sprintf(tmp,"%ld",soft_id);
+    if(tmpRec=db.query(sql.c_str())){
         free(param);
         void** res=tmpRec->fetch();
+        if(!res){
+            printf("error:%s\n",db.error());
+            delete tmpRec;
+            char tmp[]=" could not find sid";
+            tmp[0]=2;
+            send(sClient,tmp,sizeof(tmp),0);
+            prt("could not find sid:%ld\n",soft_id);
+            return 0;
+        }
         printf("uid:%ld,user:%s\n",*(int64_t*)res[0],res[1]);
         if((*(int*)res[2])!=3){
+            delete tmpRec;
             char tmp[]=" could not find sid";
             tmp[0]=2;
             send(sClient,tmp,sizeof(tmp),0);
@@ -120,6 +135,7 @@ void* fts::dealThread(void* p){
         tmp[0]=10;
         send(sClient,tmp,sizeof(tmp),0);
     }else{
+        printf("sql error");
         free(param);
         char tmp[]=" could not find sid";
         tmp[0]=2;
@@ -138,29 +154,31 @@ void* fts::dealThread(void* p){
             char tmp[]=" success";
             tmp[0]=0;
             send(sClient,tmp,sizeof(tmp),0);
+            printf("%ld,%ld\n",recvTotalLen,fileSize);
+            fclose(pFile);
+            //update db
+            param=(MYSQL_BIND*)malloc(sizeof(MYSQL_BIND)*2);
+            memset(param,0,sizeof(MYSQL_BIND)*2);
+            char* pchr=new char[tmpPath.length()+1];
+            unsigned long strLen=tmpPath.length()+1;
+            strcpy(pchr,tmpPath.c_str());
+            param[0].buffer_type=MYSQL_TYPE_STRING;
+            param[0].buffer=(char*)pchr;
+            param[0].buffer_length=tmpPath.length()+1;
+            param[0].length=&strLen;
+            printf("%s %d\n",pchr,tmpPath.length());
+            param[1].buffer_type=MYSQL_TYPE_LONGLONG;
+            param[1].buffer=(char*)&soft_id;
+            param[1].length=0;
+            if(!db.query("update jx_soft_list set `soft_path`=?,`soft_type`=0 where sid=?",param)){
+                printf("update error,path:%s sid:%ld\n",pchr,soft_id);
+            }
+            free(param);
+            delete[] pchr;
+            shutdown(sClient,2);
             break;
         }
     }
-    fclose(pFile);
-    //update db
-    param=(MYSQL_BIND*)malloc(sizeof(MYSQL_BIND)*2);
-    memset(param,0,sizeof(MYSQL_BIND)*2);
-    char* pchr=new char[tmpPath.length()+1];
-    unsigned long strLen=tmpPath.length()+1;
-    strcpy(pchr,tmpPath.c_str());
-    param[0].buffer_type=MYSQL_TYPE_STRING;
-    param[0].buffer=(char*)pchr;
-    param[0].buffer_length=tmpPath.length()+1;
-    param[0].length=&strLen;
-    printf("%s %d\n",pchr,tmpPath.length());
-    param[1].buffer_type=MYSQL_TYPE_LONGLONG;
-    param[1].buffer=(char*)&soft_id;
-    param[1].length=0;
-    if(!db.query("update jx_soft_list set `soft_path`=?,`soft_type`=0 where sid=?",param)){
-        printf("update error,path:%s sid:%ld\n",pchr,soft_id);
-    }
-    free(param);
-    delete[] pchr;
     prt("close connect:%d\n",sClient);
     return 0;
 }

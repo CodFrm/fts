@@ -12,10 +12,10 @@ main.o:main.c
 	$(g) -c main.c
 
 fts.o:fts.h fts.cpp
-	$(g) -c fts.h fts.cpp
+	$(g) -c fts.cpp fts.h
 
-mysql.o:mysql.cpp
-	$(g) -c  mysql.h mysql.cpp
+mysql.o:mysql.h mysql.cpp
+	$(g) -c mysql.cpp mysql.h 
 
 clean:
 	@rm *.o main *.h.gch

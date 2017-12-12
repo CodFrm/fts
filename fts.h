@@ -2,6 +2,8 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <string>
+#include <malloc.h>
+#include <stdlib.h>
 #include <time.h>
 #include "mysql.h"
 std::string randStr(int len);
