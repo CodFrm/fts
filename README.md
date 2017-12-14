@@ -4,7 +4,7 @@
 
 支持断点续传(主要在客户端实现记录)
 
-[C#客户端](fts)
+[C#客户端](ftc)
 
 [学校协会的下载站](https://github.com/CodFrm/jx)
 
