@@ -19,6 +19,9 @@ public:
     record* query(const char* sql);
     record* query(const char* sql,MYSQL_BIND*);
 
+    bool exec(const char* sql);
+    bool exec(const char* sql,MYSQL_BIND*);
+
     const char* error();
 };
 

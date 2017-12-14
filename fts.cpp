@@ -61,6 +61,7 @@ void* fts::dealThread(void* p){
     if(recv(sClient,headRecvBuff,1024,0)<=0){
        return 0;
     }
+    int64_t fileRecvLen=0;
     char code=headRecvBuff[0];
     int64_t fileSize=*(int64_t*)&headRecvBuff[1];
     int64_t soft_id=*(int64_t*)&headRecvBuff[9];
@@ -72,9 +73,7 @@ void* fts::dealThread(void* p){
         prt("file size error:%ld\n",fileSize);
         return 0;
     }
-    std::string filename=&headRecvBuff[17];
     prt("code:%d,",code);
-    prt("filename:%s,",filename.c_str());
     prt("soft_id:%d,",soft_id);
     prt("file size:%ld\n",fileSize);
     mysql db;
@@ -89,10 +88,10 @@ void* fts::dealThread(void* p){
     FILE* pFile;
     std::string tmpPath=dir;
     printf("soft_id:%d    ------\n",soft_id);
-    std::string sql="select SQL_NO_CACHE `soft_uid`,`soft_filename`,`soft_type` from jx_soft_list where sid=";
+    std::string sql="select `soft_uid`,`soft_filename`,`soft_type` from jx_soft_list where sid=";
     char tmp[32];
     sprintf(tmp,"%ld",soft_id);
-    sql+=soft_id;
+    sql+=tmp;
     if(tmpRec=db.query(sql.c_str())){
         free(param);
         void** res=tmpRec->fetch();
@@ -105,7 +104,7 @@ void* fts::dealThread(void* p){
             prt("could not find sid:%ld\n",soft_id);
             return 0;
         }
-        printf("uid:%ld,user:%s\n",*(int64_t*)res[0],res[1]);
+        printf("uid:%ld,filename:%s\n",*(int64_t*)res[0],res[1]);
         if((*(int*)res[2])!=3){
             delete tmpRec;
             char tmp[]=" could not find sid";
@@ -115,26 +114,43 @@ void* fts::dealThread(void* p){
             return 0;
         }
         //create file
-        tmpPath+=randStr(16)+"_";
-        tmpPath+=(char*)res[1];
         delete tmpRec;
-        if(!fts::createFileCache(tmpPath.c_str(),fileSize)){
-            char tmp[]=" server disk error";
-            tmp[0]=4;
-            send(sClient,tmp,sizeof(tmp),0);
-            return 0;
+        std::string filename="";
+        if(code==1){
+            filename=randStr(16)+".tmp";
+            tmpPath+=filename;
+            if(!fts::createFileCache(tmpPath.c_str(),fileSize)){
+                char tmp[]=" server disk error";
+                tmp[0]=4;
+                send(sClient,tmp,sizeof(tmp),0);
+                return 0;
+            }
+        }else if(code==2){
+            //code=2 continue send
+            fileRecvLen=*(int64_t*)&headRecvBuff[17];
+            filename=&headRecvBuff[25];
+            tmpPath+=filename;
         }
-        
+        printf("file:%s len:%ld\n",tmpPath.c_str(),fileRecvLen);
         if(!(pFile=fopen(tmpPath.c_str(),"rx+"))){
             char tmp[]=" server system error";
             tmp[0]=5;
             send(sClient,tmp,sizeof(tmp),0);
             return 0;
-        }
-        fseek(pFile,0,0);
-        char tmp[]=" pass";
+        }      
+        if(fseek(pFile,fileRecvLen,0)){
+            char tmp[]=" continue param error";
+            tmp[0]=6;
+            send(sClient,tmp,sizeof(tmp),0);
+            return 0;
+        }  
+        std::string strSend=" ";
+        strSend+=filename;
+        char tmp[32]={0};
+        strcpy(tmp,strSend.c_str());
+        printf("send:%s\n",strSend.c_str());
         tmp[0]=10;
-        send(sClient,tmp,sizeof(tmp),0);
+        send(sClient,tmp,strSend.length(),0);
     }else{
         printf("sql error");
         free(param);
@@ -144,10 +160,11 @@ void* fts::dealThread(void* p){
         prt("could not find sid:%ld\n",soft_id);
         return 0;
     }
-    int64_t recvTotalLen=0;
+    int64_t recvTotalLen=fileRecvLen;
     int64_t recvLen=0;
+    printf("start recv file temp file:%s\n",tmpPath.c_str());
     while(true){
-        char recvBuff[4096];//cache
+        char recvBuff[4096]={0};//cache
         if((recvLen=recv(sClient,recvBuff,4096,0))<=0)break;
         recvTotalLen+=recvLen;
         fwrite(recvBuff,recvLen,1,pFile);
@@ -160,40 +177,39 @@ void* fts::dealThread(void* p){
             //update db
             param=(MYSQL_BIND*)malloc(sizeof(MYSQL_BIND)*2);
             memset(param,0,sizeof(MYSQL_BIND)*2);
-            char* pchr=new char[tmpPath.length()+1];
-            unsigned long strLen=tmpPath.length()+1;
+            char pchr[32]={0};
+            unsigned long strLen=tmpPath.length();
             strcpy(pchr,tmpPath.c_str());
             param[0].buffer_type=MYSQL_TYPE_STRING;
             param[0].buffer=(char*)pchr;
-            param[0].buffer_length=tmpPath.length()+1;
+            param[0].buffer_length=tmpPath.length();
             param[0].length=&strLen;
             printf("%s %d\n",pchr,tmpPath.length());
             param[1].buffer_type=MYSQL_TYPE_LONGLONG;
             param[1].buffer=(char*)&soft_id;
             param[1].length=0;
-            if(!db.query("update jx_soft_list set `soft_path`=?,`soft_type`=0 where sid=?",param)){
+            if(!db.exec("update jx_soft_list set `soft_path`=?,`soft_type`=0 where sid=?",param)){
                 printf("update error,path:%s sid:%ld\n",pchr,soft_id);
             }
             free(param);
-            delete[] pchr;
             shutdown(sClient,2);
             break;
         }
     }
-    prt("close connect:%d\n",sClient);
+    printf("close connect:%d\n",sClient);
     return 0;
 }
 
 
 bool fts::createFileCache(const char* file,int64_t size){
     FILE* pFile;
-    char zero[]={0};
     if(!(pFile=fopen(file,"wx"))){
         return false;
     }
     int64_t total=size;
     int w=4194304;
     char* buffer=new char[4194304];
+    memset(buffer,0,4194304);
     while(total>0){
         total-=4194304;
         if(total<0){

@@ -14,14 +14,36 @@ mysql::mysql(){
     if(!mysql_real_connect(m_con,db_host,db_user,db_pwd,db_db,3306,NULL,0)){
         prt("error db connect\n",m_con);
     }
-    query("set names utf8;");
-    prt("db connect..",m_con);
+    exec("set names utf8;");
+    prt("db connect..\n",m_con);
 }
 
 mysql::~mysql(){
     printf("db close\n");
     mysql_close(m_con);
 }
+bool mysql::exec(const char* sql){
+    return exec(sql,NULL);
+}
+bool mysql::exec(const char* sql,MYSQL_BIND* param){
+    MYSQL_STMT *stmt;
+    stmt=mysql_stmt_init(m_con);
+    if(mysql_stmt_prepare(stmt,sql,strlen(sql))){
+        mysql_stmt_close(stmt);
+        return false;
+    }
+    if(mysql_stmt_bind_param(stmt,param)){
+        mysql_stmt_close(stmt);
+        return false;
+    }
+    if(mysql_stmt_execute(stmt)){
+        mysql_stmt_close(stmt);
+        return false;
+    }
+    mysql_stmt_close(stmt);
+    return true;
+}
+
 record* mysql::query(const char* sql){
     return query(sql,NULL);
 }
@@ -30,18 +52,18 @@ record* mysql::query(const char* sql,MYSQL_BIND* param){
     stmt=mysql_stmt_init(m_con);
     record* tmpRec=new record(stmt);
     if(mysql_stmt_prepare(stmt,sql,strlen(sql))){
+        mysql_stmt_close(stmt);
         return NULL;
     }
     if(mysql_stmt_bind_param(stmt,param)){
+        mysql_stmt_close(stmt);
         return NULL;
     }
-    try{
-        if(mysql_stmt_execute(stmt)){
-            return NULL;
-        }
-    }catch(...){
+    if(mysql_stmt_execute(stmt)){
+        mysql_stmt_close(stmt);
         return NULL;
     }
+
     return tmpRec;
 }
 
