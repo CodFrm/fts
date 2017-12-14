@@ -1,0 +1,377 @@
+﻿using System;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
+
+namespace jx_upload
+{
+    class Functions
+    {
+        public static float Version = 1.0F;
+        internal static string version = "v1.0";
+        /// <summary>
+        /// 写操作
+        /// </summary>
+        /// <param name="section">节</param>
+        /// <param name="key">键</param>
+        /// <param name="value">值</param>
+        /// <param name="filePath">文件路径</param>
+        /// <returns></returns>
+        [DllImport("kernel32")]
+        private static extern long WritePrivateProfileString(string section, string key, string value, string filePath);
+
+        /// <summary>
+        /// 读操作
+        /// </summary>
+        /// <param name="section">节</param>
+        /// <param name="key">键</param>
+        /// <param name="def">未读取到的默认值</param>
+        /// <param name="retVal">读取到的值</param>
+        /// <param name="size">大小</param>
+        /// <param name="filePath">路径</param>
+        /// <returns></returns>
+        [DllImport("kernel32")]
+        private static extern int GetPrivateProfileString(string section, string key, string def, StringBuilder retVal, int size, string filePath);
+
+        /// <summary>
+        /// 写入ini文件
+        /// </summary>
+        /// <param name="section">节</param>
+        /// <param name="key">键</param>
+        /// <param name="value">值</param>
+        /// <param name="filePath">文件路径</param>
+        /// <returns></returns>
+        public static void WriteIni(string section, string key, string value)
+        {
+            try
+            {
+                string IniFilePath = Application.StartupPath + @"\config.ini";
+                WritePrivateProfileString(section, key, value, IniFilePath);
+            }
+            catch (Exception)
+            {
+                return;
+            }
+        }
+
+        /// <summary>
+        /// 读ini文件
+        /// </summary>
+        /// <param name="section">节</param>
+        /// <param name="key">键</param>
+        /// <param name="defValue">未读取到值时的默认值</param>
+        /// <param name="filePath">文件路径</param>
+        /// <returns></returns>
+        public static string ReadIni(string section, string key)
+        {
+            try
+            {
+                string IniFilePath = Application.StartupPath + @"\config.ini";
+                StringBuilder temp = new StringBuilder(255);
+                int i = GetPrivateProfileString(section, key, "", temp, 255, IniFilePath);
+                return temp.ToString();
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+
+        }
+        public static string URL = "http://d.worldtreestd.com";//http://127.0.0.1/jx
+
+        private static CookieContainer cookie = new CookieContainer();
+
+        public static string User { get; internal set; }
+        public static string Pwd { get; internal set; }
+        /// <summary>
+        /// 关闭进程
+        /// </summary>
+        /// <param name="processName">进程名</param>
+        public static void KillProcess(string processName)
+        {
+            Process[] myproc = Process.GetProcesses();
+            foreach (Process item in myproc)
+            {
+                if (item.ProcessName == processName)
+                {
+                    item.Kill();
+                }
+            }
+        }
+        //强制关闭最近打开的某个进程
+
+        public static void KillRecentProcess(string processName)
+        {
+            System.Diagnostics.Process[] Proc = System.Diagnostics.Process.GetProcessesByName(processName);
+            System.DateTime startTime = new DateTime();
+            int m, killId = 0;
+            for (m = 0; m < Proc.Length; m++)
+            {
+                if (startTime < Proc[m].StartTime)
+                {
+                    startTime = Proc[m].StartTime;
+                    killId = m;
+                }
+            }
+            if (Proc[killId].HasExited == false)
+            {
+                Proc[killId].Kill();
+            }
+
+        }
+        /// <summary>
+        /// Http发送Get请求方法
+        /// </summary>
+        /// <param name="Url"></param>
+        /// <param name="postDataStr"></param>
+        /// <returns></returns>
+        public static string HttpGet(string Url, string postDataStr = "")
+        {
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url + (postDataStr == "" ? "" : "?") + postDataStr);
+                if (cookie.Count == 0)
+                {
+                    request.CookieContainer = new CookieContainer();
+                    cookie = request.CookieContainer;
+                }
+                else
+                {
+                    request.CookieContainer = cookie;
+                }
+                request.Timeout = 2000;
+                request.Method = "GET";
+                request.ContentType = "text/html;charset=UTF-8";
+
+                HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                Stream myResponseStream = response.GetResponseStream();
+                StreamReader myStreamReader = new StreamReader(myResponseStream, Encoding.UTF8);
+                string retString = myStreamReader.ReadToEnd();
+                myStreamReader.Close();
+                myResponseStream.Close();
+
+                return retString;
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+
+
+        }
+        /// <summary>
+        /// Http读文件
+        /// </summary>
+        /// <param name="Url"></param>
+        /// <returns></returns>
+        public static StreamReader HttpFile(string Url)
+        {
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);
+                if (cookie.Count == 0)
+                {
+                    request.CookieContainer = new CookieContainer();
+                    cookie = request.CookieContainer;
+                }
+                else
+                {
+                    request.CookieContainer = cookie;
+                }
+                request.Timeout = 2000;
+                request.Method = "GET";
+                request.ContentType = "text/html;charset=UTF-8";
+
+                HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                Stream myResponseStream = response.GetResponseStream();
+                StreamReader myStreamReader = new StreamReader(myResponseStream, Encoding.UTF8);
+
+                return myStreamReader;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+        }
+        /// <summary>
+        /// Http发送Post请求方法
+        /// </summary>
+        /// <param name="Url"></param>
+        /// <param name="postDataStr"></param>
+        /// <returns></returns>
+        public static string HttpPost(string Url, string postDataStr = "")
+        {
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);
+                if (cookie.Count == 0)
+                {
+                    request.CookieContainer = new CookieContainer();
+                    cookie = request.CookieContainer;
+                }
+                else
+                {
+                    request.CookieContainer = cookie;
+                }
+                request.Timeout = 2000;
+                request.Method = "POST";
+                request.ContentType = "application/x-www-form-urlencoded";
+                request.ContentLength = postDataStr.Length;
+                StreamWriter writer = new StreamWriter(request.GetRequestStream(), Encoding.ASCII);
+                writer.Write(postDataStr);
+                writer.Flush();
+                HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                string encoding = response.ContentEncoding;
+                if (encoding == null || encoding.Length < 1)
+                {
+                    encoding = "UTF-8"; //默认编码 
+                }
+                StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.GetEncoding(encoding));
+                string retString = reader.ReadToEnd();
+                return retString;
+            }
+            catch (Exception)
+            {
+
+                return "";
+            }
+
+        }
+
+        /// <summary>
+        /// Http上传文件
+        /// </summary>
+        /// <param name="Url"></param>
+        /// <param name="postDataStr"></param>
+        /// <returns></returns>
+        public static string HttpPostFile(string Url, string filePath)
+        {
+            try
+            {
+                string retString = "";
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);
+                if (cookie.Count == 0)
+                {
+                    request.CookieContainer = new CookieContainer();
+                    cookie = request.CookieContainer;
+                }
+                else
+                {
+                    request.CookieContainer = cookie;
+                }
+                FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                BinaryReader binaryReader = new BinaryReader(fileStream);
+                string boundary = "------WebKitFormBoundarykaeaJ5vBkUl6AzYd";
+                string dataFormat = boundary + "\r\nContent-Disposition: form-data; name=\"{0}\";filename=\"{1}\"\r\nContent-Type:application/octet-stream\r\n\r\n";
+                string header = string.Format(dataFormat, "upfile", Path.GetFileName(filePath));
+                byte[] postHeaderBytes = Encoding.UTF8.GetBytes(header);
+                byte[] boundaryBytes = Encoding.ASCII.GetBytes("\r\n------WebKitFormBoundarykaeaJ5vBkUl6AzYd--\r\n");
+                long length = fileStream.Length + postHeaderBytes.Length + boundaryBytes.Length;
+                request.ContentLength = length;
+                request.AllowWriteStreamBuffering = false;
+                request.Timeout = 15000;
+                request.Method = "POST";
+                request.ContentType = "multipart/form-data; boundary=----WebKitFormBoundarykaeaJ5vBkUl6AzYd";
+                try
+                {
+                    int bufferLength = 4096;
+                    byte[] buffer = new byte[bufferLength];
+                    long offset = 0;
+                    int size = binaryReader.Read(buffer, 0, bufferLength);
+                    Stream postStream = request.GetRequestStream();
+                    postStream.Write(postHeaderBytes, 0, postHeaderBytes.Length);
+                    while (size > 0)
+                    {
+                        postStream.Write(buffer, 0, size);
+                        offset += size;
+                        size = binaryReader.Read(buffer, 0, bufferLength);
+                    }
+                    postStream.Write(boundaryBytes, 0, boundaryBytes.Length);
+                    postStream.Close();
+
+                    HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                    string encoding = response.ContentEncoding;
+                    if (encoding == null || encoding.Length < 1)
+                    {
+                        encoding = "UTF-8"; //默认编码 
+                    }
+                    StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.GetEncoding(encoding));
+                    retString = reader.ReadToEnd();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("文件传输异常： " + ex.Message);
+                }
+                finally
+                {
+                    fileStream.Close();
+                    binaryReader.Close();
+                }
+                return retString;
+            }
+            catch (Exception)
+            {
+
+                return "";
+            }
+
+        }
+
+        /// <summary>
+        /// 写文件
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="content"></param>
+        public static void WriteFile(string path, string content)
+        {
+            FileStream fs = new FileStream(path, FileMode.Create);
+            //获得字节数组
+            byte[] data = System.Text.Encoding.Default.GetBytes(content);
+            //开始写入
+            fs.Write(data, 0, data.Length);
+            //清空缓冲区、关闭流
+            fs.Flush();
+            fs.Close();
+        }
+
+        /// <summary>
+        /// 删除文件
+        /// </summary>
+        /// <param name="path"></param>
+        public static void DeleteFile(string path)
+        {
+            File.Delete(path);
+        }
+
+        public static void RunExe(string path, string parame = "")
+        {
+            try
+            {
+                Process process = new Process();
+                process.StartInfo.FileName = path;
+                process.StartInfo.Arguments = parame;
+                process.StartInfo.Verb = "runas";
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardInput = true;
+                process.StartInfo.CreateNoWindow = true;
+                process.Start();
+                process.WaitForExit();
+                process.Close();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+        }
+        public static string URLEncode(string str)
+        {
+            return System.Web.HttpUtility.UrlEncode(str);
+        }
+    }
+}
