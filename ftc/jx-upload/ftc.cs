@@ -93,13 +93,13 @@ namespace jx_upload
                             while (sendTotalLen < fileSize)
                             {
                                 int sendLen = 0;
-                                if (sendTotalLen + 4096 > fileSize)
+                                if (sendTotalLen + 524288 > fileSize)
                                 {
                                     sendLen = (int)(fileSize - sendTotalLen);
                                 }
                                 else
                                 {
-                                    sendLen = 4096;
+                                    sendLen = 524288;
                                 }
                                 byte[] buffer = new byte[sendLen];
                                 sendLen = file.Read(buffer, 0, sendLen);
