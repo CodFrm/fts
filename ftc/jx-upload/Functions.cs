@@ -80,7 +80,7 @@ namespace jx_upload
             }
 
         }
-        public static string URL = "http://d.worldtreestd.com";//http://127.0.0.1/jx
+        public static string URL = "http://d.icodef.com";//http://127.0.0.1/jx
 
         private static CookieContainer cookie = new CookieContainer();
 

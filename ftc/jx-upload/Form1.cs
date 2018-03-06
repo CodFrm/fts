@@ -2,6 +2,7 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
+using System.Net;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -65,7 +66,9 @@ namespace jx_upload
                         }
                         isupload = true;
                         label4.Text = "准备上传...";
-                        m_ftc = new ftc("10.1.6.31", FtcCallBack);//10.127.134.51
+                        IPHostEntry host = Dns.GetHostByName("d.icodef.com");
+                        IPAddress ip = host.AddressList[0];
+                        m_ftc = new ftc(ip.ToString(), FtcCallBack);//10.127.134.51
                         m_ftc.SetFileId(long.Parse(jo["sid"].ToString()));
                         m_ftc.SendToSid();
                     }
@@ -89,7 +92,9 @@ namespace jx_upload
         {
             isupload = true;
             label4.Text = "开始上传...";
-            m_ftc = new ftc("10.1.6.31", FtcCallBack);//10.127.134.51
+            IPHostEntry host = Dns.GetHostByName("d.icodef.com");
+            IPAddress ip = host.AddressList[0];
+            m_ftc = new ftc(ip.ToString(), FtcCallBack);//10.127.134.51
             m_ftc.SetFileId(long.Parse(sid));
             m_ftc.SendFileMsg(filename);
         }
